@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -43,16 +42,13 @@ func Scrape(meta string) {
 	// 遍历目录, 下载书籍
 	all := doc.Find(sContentList)
 	all.Each(func(i int, s *goquery.Selection) {
-		if DebugMode {
-			log.Println(i, s.Text)
-		}
 		wg.Add(1)
 		go func(id int, url string) {
 			defer func() {
 				wg.Done()
 				// 进度条处理
 				now := atomic.AddInt32(&total, 1)
-				fmt.Printf("已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
+				fmt.Printf("\n已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
 			}()
 			spage, err := http.Get(host + url)
 			if err != nil || page.StatusCode == 302 {
@@ -66,7 +62,7 @@ func Scrape(meta string) {
 			title := doc.Find(sChapterName).First().Text()
 			txt, _ := doc.Find(sContent).First().Html()
 			content := str.ReplaceAll(str.ReplaceAll(txt, "&nbsp", " "), "<br/><br/>", "\n")
-			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id)))
+			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
 			if err != nil {
 				color.Red("无法创建文件")
 				return
@@ -74,11 +70,7 @@ func Scrape(meta string) {
 			f.WriteString(fmt.Sprintf("\n%s\n\n", title))
 			f.WriteString(content)
 		}(i, s.AttrOr("href", ""))
-		if DebugMode {
-			time.Sleep(time.Millisecond * 500)
-		} else {
-			time.Sleep(time.Millisecond * 50)
-		}
+		time.Sleep(time.Millisecond * 150)
 	})
 	wg.Wait()
 
@@ -91,7 +83,7 @@ func Scrape(meta string) {
 		os.Exit(2)
 	}
 	bf := bufio.NewWriter(f)
-	// 读取每一章内容
+	// 读取章列表
 	chunks, err := ioutil.ReadDir(tmp)
 	if err != nil {
 		color.Red("无法获取块信息")
@@ -108,11 +100,11 @@ func Scrape(meta string) {
 			color.Red("写入失败")
 			os.Exit(2)
 		}
+		bf.Flush()
 	}
-	bf.Flush()
 	err = os.RemoveAll(tmp)
 	if err != nil {
-		color.Red("清理任失败，跳过")
+		color.Red("清理任务失败，跳过")
 	}
 	color.HiGreen("生成完毕! 用时: %v", time.Since(start))
 }

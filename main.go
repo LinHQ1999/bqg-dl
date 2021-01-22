@@ -1,8 +1,6 @@
 package main
 
-import (
-	"bqg/cmd"
-)
+import "bqg/cmd"
 
 func main() {
 	cmd.Execute()

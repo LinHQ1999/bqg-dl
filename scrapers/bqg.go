@@ -7,8 +7,6 @@ package scrapers
 const host = "https://www.biquduo.com"
 
 var (
-	// DebugMode 调试模式
-	DebugMode bool
 	// 以下为选择器
 	// 书名
 	sBookName = "#info>h1"
