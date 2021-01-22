@@ -8,6 +8,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	str "strings"
 	"sync"
 	"sync/atomic"
@@ -48,7 +51,7 @@ func Scrape(meta string) {
 				wg.Done()
 				// 进度条处理
 				now := atomic.AddInt32(&total, 1)
-				fmt.Printf("\n已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
+				fmt.Printf("已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
 			}()
 			spage, err := http.Get(host + url)
 			if err != nil || page.StatusCode == 302 {
@@ -72,9 +75,11 @@ func Scrape(meta string) {
 		}(i, s.AttrOr("href", ""))
 		time.Sleep(time.Millisecond * 150)
 	})
+	// 等待所有的协程完成
 	wg.Wait()
 
 	color.Green("\n下载完毕，正在生成 ...")
+
 	// 创建目标文件
 	f, err := os.Create(path.Join(name + ".txt"))
 	defer f.Close()
@@ -83,14 +88,28 @@ func Scrape(meta string) {
 		os.Exit(2)
 	}
 	bf := bufio.NewWriter(f)
-	// 读取章列表
-	chunks, err := ioutil.ReadDir(tmp)
+
+	// 按顺序读取章列表
+	dir, err := os.Open(tmp)
 	if err != nil {
-		color.Red("无法获取块信息")
+		color.Red("无法打开临时目录")
 		os.Exit(2)
 	}
+
+	chunks, err := dir.Readdirnames(-1)
+	if err != nil {
+		color.Red("临时目录信息无法获取")
+		os.Exit(2)
+	}
+	// 对文件名称进行排序
+	sort.Slice(chunks, func(i, j int) bool {
+		a, _ := strconv.Atoi(chunks[i][:strings.LastIndex(chunks[i], ".")])
+		b, _ := strconv.Atoi(chunks[j][:strings.LastIndex(chunks[j], ".")])
+		return a < b
+	})
 	for _, v := range chunks {
-		ct, err := ioutil.ReadFile(path.Join(tmp, v.Name()))
+		fmt.Println(v)
+		ct, err := ioutil.ReadFile(path.Join(tmp, v))
 		if err != nil {
 			color.Red("无法获取块")
 			os.Exit(2)
@@ -100,11 +119,11 @@ func Scrape(meta string) {
 			color.Red("写入失败")
 			os.Exit(2)
 		}
-		bf.Flush()
 	}
-	err = os.RemoveAll(tmp)
-	if err != nil {
-		color.Red("清理任务失败，跳过")
-	}
+	bf.Flush()
+	//err = os.RemoveAll(tmp)
+	//if err != nil {
+	//	color.Red("清理任务失败，跳过")
+	//}
 	color.HiGreen("生成完毕! 用时: %v", time.Since(start))
 }
