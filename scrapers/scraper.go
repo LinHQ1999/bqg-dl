@@ -52,7 +52,7 @@ func Scrape(meta string) {
 				wg.Done()
 				// 进度条处理
 				now := atomic.AddInt32(&total, 1)
-				fmt.Printf("已完成: %.2f%%\r", float32(now)/float32(len(all.Nodes)*100))
+				fmt.Printf("已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
 			}()
 			spage, err := http.Get(host + url)
 			if err != nil || page.StatusCode == 302 {
@@ -74,34 +74,38 @@ func Scrape(meta string) {
 			f.WriteString(fmt.Sprintf("\n%s\n\n", title))
 			f.WriteString(content)
 		}(i, s.AttrOr("href", ""))
-		time.Sleep(time.Millisecond)
+		if DebugMode {
+			time.Sleep(time.Millisecond * 500)
+		} else {
+			time.Sleep(time.Millisecond * 50)
+		}
 	})
 	wg.Wait()
 
-color.Green("\n下载完毕，正在生成 ...")
+	color.Green("\n下载完毕，正在生成 ...")
 	// 创建目标文件
-	f, err :=os.Create(path.Join(name + ".txt"))
+	f, err := os.Create(path.Join(name + ".txt"))
 	defer f.Close()
 	if err != nil {
-		color.Red("无法创文件")
+		color.Red("无法创建文件")
 		os.Exit(2)
 	}
 	bf := bufio.NewWriter(f)
 	// 读取每一章内容
 	chunks, err := ioutil.ReadDir(tmp)
 	if err != nil {
-		color.Red("无法获块信息")
+		color.Red("无法获取块信息")
 		os.Exit(2)
 	}
 	for _, v := range chunks {
 		ct, err := ioutil.ReadFile(path.Join(tmp, v.Name()))
 		if err != nil {
-			color.Red("无法获块")
+			color.Red("无法获取块")
 			os.Exit(2)
 		}
 		_, err = bf.Write(ct)
 		if err != nil {
-			color.Red("写入失")
+			color.Red("写入失败")
 			os.Exit(2)
 		}
 	}

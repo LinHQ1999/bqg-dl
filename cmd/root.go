@@ -30,5 +30,5 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.PersistentFlags().BoolVarP(&scrapers.DebugMode, "debug", "d", false, "调试模式")
+	rootCmd.PersistentFlags().BoolVar(&scrapers.DebugMode, "debug", false, "调试模式")
 }
