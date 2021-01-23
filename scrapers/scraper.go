@@ -73,7 +73,7 @@ func Scrape(meta string) {
 				color.Red("无法创建文件")
 				return
 			}
-			fmt.Fprintf(f, "%s\n\n", title)
+			fmt.Fprintf(f, "\n%s\n\n", title)
 			rp.WriteString(f, txt)
 		}(i, s.AttrOr("href", ""))
 		// 限制速度
