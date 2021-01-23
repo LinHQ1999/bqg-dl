@@ -26,6 +26,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&scrapers.Threads, "threads", "t", 32, "协程数量")
 	rootCmd.Flags().BoolVar(&scrapers.Single, "single", false, "保留单章")
 	rootCmd.Flags().BoolVar(&scrapers.Limit, "limit", false, "保险模式")
+	rootCmd.Flags().BoolVar(&scrapers.Unicode, "utf", false, "网页是否是UTF-8")
 }
 
 // Execute main call

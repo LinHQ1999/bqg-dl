@@ -14,6 +14,8 @@ import (
 
 // 间隔时间
 var (
+	// Unicode 是否是unicode
+	Unicode bool
 	// Threads 线程数
 	Threads int
 	// Limit 限速
@@ -32,8 +34,9 @@ func init() {
 }
 
 // C 配置信息
-type C struct { // Host 域名
-	Host string
+type C struct {
+	// Prefix 域名
+	Prefix string
 	// 以下为选择器
 	//SBookName 书名
 	BookName string
@@ -51,7 +54,7 @@ func initConfig() {
 	viper.AddConfigPath(path.Join("."))
 
 	// 配置默认值
-	viper.SetDefault("Host", "https://www.biquduo.com")
+	viper.SetDefault("Prefix", "https://www.biquduo.com")
 	viper.SetDefault("BookName", "#info>h1")
 	viper.SetDefault("ContentList", "#list dd>a")
 	viper.SetDefault("ChapterName", ".bookname h1")

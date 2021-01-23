@@ -3,6 +3,7 @@ package scrapers
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -37,12 +38,20 @@ func Scrape(meta string) {
 	// 获取主页信息
 	page, err := http.Get(meta)
 	if err != nil || page.StatusCode == 302 {
-		color.Red("无法获取目录！")
+		color.Red("无法获取章节列表 %s", err.Error())
 		os.Exit(2)
 	}
 	defer page.Body.Close()
-	// GBK转UTF-8
-	rd := simplifiedchinese.GBK.NewDecoder().Reader(page.Body)
+
+	// 编码转换
+	var rd io.Reader
+	if !Unicode {
+		// GBK转UTF-8
+		rd = simplifiedchinese.GBK.NewDecoder().Reader(page.Body)
+	} else {
+		rd = page.Body
+	}
+
 	doc, _ := goquery.NewDocumentFromReader(rd)
 	name := doc.Find(c.BookName).First().Text()
 
@@ -59,12 +68,20 @@ func Scrape(meta string) {
 				now := atomic.AddInt32(&total, 1)
 				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
 			}()
-			spage, err := http.Get(c.Host + url)
+			spage, err := http.Get(c.Prefix + url)
 			if err != nil || page.StatusCode == 302 {
 				color.Red("本章下载失败！")
 				return
 			}
-			rd := simplifiedchinese.GBK.NewDecoder().Reader(spage.Body)
+
+			var rd io.Reader
+			if !Unicode {
+				// GBK转UTF-8
+				rd = simplifiedchinese.GBK.NewDecoder().Reader(spage.Body)
+			} else {
+				rd = spage.Body
+			}
+
 			defer spage.Body.Close()
 			doc, _ := goquery.NewDocumentFromReader(rd)
 
