@@ -42,7 +42,7 @@ type C struct { // Host 域名
 }
 
 func initConfig() {
-	viper.SetConfigName("conf")
+	viper.SetConfigName("bqg")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(path.Join("."))
 
@@ -56,7 +56,7 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		switch err.(type) {
 		case viper.ConfigFileNotFoundError:
-			err := viper.WriteConfigAs(path.Join("conf.yml"))
+			err := viper.WriteConfigAs(path.Join("bqg.yml"))
 			if err != nil {
 				color.Red("配置文件写入失败!")
 				os.Exit(2)
