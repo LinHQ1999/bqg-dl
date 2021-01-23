@@ -1,12 +1,12 @@
 # 小说下载器
 
-> 默认支持：[笔趣阁](`https://www.biquduo.com/)`,
+> 默认支持：[笔趣阁](https://www.biquduo.com/),
 
 ## 使用方式
 
 从以上网址中找到书籍的主页（可以看到目录的页面），然后将url复制下载调用即可。
 
-```sh
+```powershell
 .\bqg.exe <url>
 
 # 使用 -h 参数查看更多选项
