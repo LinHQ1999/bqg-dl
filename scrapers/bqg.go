@@ -14,6 +14,8 @@ import (
 
 // 间隔时间
 var (
+	// Limit 限速
+	Limit bool
 	// Jump 跳过前面几章
 	Jump int
 	// Single 保留单章

@@ -63,7 +63,7 @@ func Scrape(meta string) {
 			doc, _ := goquery.NewDocumentFromReader(rd)
 
 			// 标题和内容（原始）
-			title := doc.Find(c.ChapterName).First().Text()
+			title := strings.Trim(doc.Find(c.ChapterName).First().Text(), `\n~\t`)
 			txt, _ := doc.Find(c.Content).First().Html()
 			// 多重替换，稍后写入
 			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n")
@@ -73,10 +73,13 @@ func Scrape(meta string) {
 				color.Red("无法创建文件")
 				return
 			}
-			f.WriteString(fmt.Sprintf("\n%s\n\n", title))
+			fmt.Fprintf(f, "%s\n\n", title)
 			rp.WriteString(f, txt)
 		}(i, s.AttrOr("href", ""))
-		time.Sleep(time.Millisecond * 50)
+		// 限制速度
+		if Limit {
+			time.Sleep(time.Millisecond * 50)
+		}
 	})
 	// 等待所有的协程完成
 	wg.Wait()
@@ -122,6 +125,8 @@ func Scrape(meta string) {
 			color.Red("写入失败")
 			os.Exit(2)
 		}
+		// 写入一个空行
+		bf.WriteString("\n")
 	}
 	bf.Flush()
 	if !Single {

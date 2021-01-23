@@ -24,6 +24,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Flags().IntVarP(&scrapers.Jump, "jump", "j", 0, "跳过的前面的章数")
 	rootCmd.Flags().BoolVar(&scrapers.Single, "single", false, "保留单章")
+	rootCmd.Flags().BoolVar(&scrapers.Limit, "limit", true, "限制速度")
 }
 
 // Execute main call
