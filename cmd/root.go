@@ -12,13 +12,18 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "bqg <书籍主页链接>",
 	Short: "下载笔趣阁的书籍",
-	Long: `目前仅支持：
+	Long: `默认支持：
 	- https://www.biquduo.com/`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		scrapers.Scrape(args[0])
 	},
-	Version: "1.0.2",
+	Version: "1.1.3",
+}
+
+func init() {
+	rootCmd.Flags().IntVarP(&scrapers.Jump, "jump", "j", 0, "跳过的前面的章数")
+	rootCmd.Flags().BoolVar(&scrapers.Single, "single", false, "保留单章")
 }
 
 // Execute main call
@@ -27,8 +32,4 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

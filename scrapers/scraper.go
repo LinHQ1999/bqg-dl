@@ -40,10 +40,10 @@ func Scrape(meta string) {
 	// GBK转UTF-8
 	rd := simplifiedchinese.GBK.NewDecoder().Reader(page.Body)
 	doc, _ := goquery.NewDocumentFromReader(rd)
-	name := doc.Find(sBookName).First().Text()
+	name := doc.Find(c.BookName).First().Text()
 
 	// 遍历目录, 下载书籍
-	all := doc.Find(sContentList)
+	all := doc.Find(c.ContentList)
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		go func(id int, url string) {
@@ -51,9 +51,9 @@ func Scrape(meta string) {
 				wg.Done()
 				// 进度条处理
 				now := atomic.AddInt32(&total, 1)
-				fmt.Printf("已下载: %.2f%%\r", float32(now)/float32(len(all.Nodes))*100)
+				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
 			}()
-			spage, err := http.Get(host + url)
+			spage, err := http.Get(c.Host + url)
 			if err != nil || page.StatusCode == 302 {
 				color.Red("本章下载失败！")
 				return
@@ -62,18 +62,21 @@ func Scrape(meta string) {
 			defer spage.Body.Close()
 			doc, _ := goquery.NewDocumentFromReader(rd)
 
-			title := doc.Find(sChapterName).First().Text()
-			txt, _ := doc.Find(sContent).First().Html()
-			content := str.ReplaceAll(str.ReplaceAll(txt, "&nbsp", " "), "<br/><br/>", "\n")
+			// 标题和内容（原始）
+			title := doc.Find(c.ChapterName).First().Text()
+			txt, _ := doc.Find(c.Content).First().Html()
+			// 多重替换，稍后写入
+			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n")
+			// 打开文件
 			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
 			if err != nil {
 				color.Red("无法创建文件")
 				return
 			}
 			f.WriteString(fmt.Sprintf("\n%s\n\n", title))
-			f.WriteString(content)
+			rp.WriteString(f, txt)
 		}(i, s.AttrOr("href", ""))
-		time.Sleep(time.Millisecond * 150)
+		time.Sleep(time.Millisecond * 50)
 	})
 	// 等待所有的协程完成
 	wg.Wait()
@@ -89,13 +92,12 @@ func Scrape(meta string) {
 	}
 	bf := bufio.NewWriter(f)
 
-	// 按顺序读取章列表
+	// 生成列表
 	dir, err := os.Open(tmp)
 	if err != nil {
 		color.Red("无法打开临时目录")
 		os.Exit(2)
 	}
-
 	chunks, err := dir.Readdirnames(-1)
 	if err != nil {
 		color.Red("临时目录信息无法获取")
@@ -107,8 +109,9 @@ func Scrape(meta string) {
 		b, _ := strconv.Atoi(chunks[j][:strings.LastIndex(chunks[j], ".")])
 		return a < b
 	})
-	for _, v := range chunks {
-		fmt.Println(v)
+
+	// 跳过不需要的
+	for _, v := range chunks[Jump:] {
 		ct, err := ioutil.ReadFile(path.Join(tmp, v))
 		if err != nil {
 			color.Red("无法获取块")
@@ -121,9 +124,11 @@ func Scrape(meta string) {
 		}
 	}
 	bf.Flush()
-	//err = os.RemoveAll(tmp)
-	//if err != nil {
-	//	color.Red("清理任务失败，跳过")
-	//}
+	if !Single {
+		err = os.RemoveAll(tmp)
+		if err != nil {
+			color.Red("清理任务失败，跳过")
+		}
+	}
 	color.HiGreen("生成完毕! 用时: %v", time.Since(start))
 }
