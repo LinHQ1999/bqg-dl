@@ -26,12 +26,16 @@ func Scrape(meta string) {
 	// 环境配置
 	tmp := filepath.Join("chunk")
 	os.MkdirAll(tmp, os.ModeDir)
-	start := time.Now()
-	var total int32 = 0
 
+	// 并发控制，并发量为8
+	var total int32 = 0
+	max := make(chan struct{}, 8)
+	wg := sync.WaitGroup{}
+
+	// 开始计时
+	start := time.Now()
 	// 获取主页信息
 	page, err := http.Get(meta)
-	wg := sync.WaitGroup{}
 	if err != nil || page.StatusCode == 302 {
 		color.Red("无法获取目录！")
 		os.Exit(2)
@@ -46,9 +50,11 @@ func Scrape(meta string) {
 	all := doc.Find(c.ContentList)
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
+		max <- struct{}{}
 		go func(id int, url string) {
 			defer func() {
 				wg.Done()
+				<-max
 				// 进度条处理
 				now := atomic.AddInt32(&total, 1)
 				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
@@ -73,14 +79,17 @@ func Scrape(meta string) {
 				color.Red("无法创建文件")
 				return
 			}
-			fmt.Fprintf(f, "\n%s\n\n", title)
+			// 执行写入
+			fmt.Fprintf(f, "%s\n\n", title)
 			rp.WriteString(f, txt)
+
 		}(i, s.AttrOr("href", ""))
 		// 限制速度
 		if Limit {
-			time.Sleep(time.Millisecond * 50)
+			time.Sleep(time.Millisecond * 150)
 		}
 	})
+	close(max)
 	// 等待所有的协程完成
 	wg.Wait()
 
@@ -97,6 +106,7 @@ func Scrape(meta string) {
 
 	// 生成列表
 	dir, err := os.Open(tmp)
+	defer dir.Close()
 	if err != nil {
 		color.Red("无法打开临时目录")
 		os.Exit(2)
@@ -126,7 +136,7 @@ func Scrape(meta string) {
 			os.Exit(2)
 		}
 		// 写入一个空行
-		bf.WriteString("\n")
+		bf.WriteString("\n\n")
 	}
 	bf.Flush()
 	if !Single {
