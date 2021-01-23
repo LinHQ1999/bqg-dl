@@ -27,9 +27,9 @@ func Scrape(meta string) {
 	tmp := filepath.Join("chunk")
 	os.MkdirAll(tmp, os.ModeDir)
 
-	// 并发控制，并发量为8
+	// 并发控制
 	var total int32 = 0
-	max := make(chan struct{}, 8)
+	max := make(chan struct{}, Threads)
 	wg := sync.WaitGroup{}
 
 	// 开始计时

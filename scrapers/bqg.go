@@ -14,6 +14,8 @@ import (
 
 // 间隔时间
 var (
+	// Threads 线程数
+	Threads int
 	// Limit 限速
 	Limit bool
 	// Jump 跳过前面几章
