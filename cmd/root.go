@@ -27,6 +27,8 @@ func init() {
 	rootCmd.Flags().BoolVar(&scrapers.Single, "single", false, "保留单章")
 	rootCmd.Flags().BoolVar(&scrapers.Limit, "limit", false, "保险模式")
 	rootCmd.Flags().BoolVar(&scrapers.Unicode, "utf", false, "网页是否是UTF-8")
+	rootCmd.Flags().BoolVar(&scrapers.Extend, "ex", false, `扩展host以支持特定网站，比如书籍链接不是
+	完整的path的`)
 }
 
 // Execute main call

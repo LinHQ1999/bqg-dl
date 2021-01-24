@@ -14,6 +14,8 @@ import (
 
 // 间隔时间
 var (
+	// Extend 扩展基准url
+	Extend bool
 	// Unicode 是否是unicode
 	Unicode bool
 	// Threads 线程数
@@ -35,8 +37,8 @@ func init() {
 
 // C 配置信息
 type C struct {
-	// Prefix 域名
-	Prefix string
+	// Host 域名
+	Host string
 	// 以下为选择器
 	//SBookName 书名
 	BookName string

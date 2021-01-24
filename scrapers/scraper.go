@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -33,6 +34,18 @@ func Scrape(meta string) {
 	max := make(chan struct{}, Threads)
 	wg := sync.WaitGroup{}
 
+	// 处理目录中链接拼接问题
+	if Extend {
+		m, err1 := url.Parse(meta)
+		h, err2 := url.Parse(c.Host)
+		if err1 != nil || err2 != nil {
+			color.Red("host解析错误")
+			os.Exit(2)
+		}
+		h.Path = m.EscapedPath()
+		c.Host = h.String()
+	}
+
 	// 开始计时
 	start := time.Now()
 	// 获取主页信息
@@ -43,18 +56,8 @@ func Scrape(meta string) {
 	}
 	defer page.Body.Close()
 
-	// 编码转换
-	var rd io.Reader
-	if !Unicode {
-		// GBK转UTF-8
-		rd = simplifiedchinese.GBK.NewDecoder().Reader(page.Body)
-	} else {
-		rd = page.Body
-	}
-
-	doc, _ := goquery.NewDocumentFromReader(rd)
+	doc, _ := goquery.NewDocumentFromReader(page.Body)
 	name := doc.Find(c.BookName).First().Text()
-
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
 	all.Each(func(i int, s *goquery.Selection) {
@@ -68,23 +71,15 @@ func Scrape(meta string) {
 				now := atomic.AddInt32(&total, 1)
 				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
 			}()
-			spage, err := http.Get(c.Prefix + url)
+			spage, err := http.Get(c.Host + url)
 			if err != nil || page.StatusCode == 302 {
 				color.Red("本章下载失败！")
 				return
 			}
-
-			var rd io.Reader
-			if !Unicode {
-				// GBK转UTF-8
-				rd = simplifiedchinese.GBK.NewDecoder().Reader(spage.Body)
-			} else {
-				rd = spage.Body
-			}
-
 			defer spage.Body.Close()
-			doc, _ := goquery.NewDocumentFromReader(rd)
 
+			// 内容操作
+			doc, _ := goquery.NewDocumentFromReader(convertEncoding(spage.Body))
 			// 标题和内容（原始）
 			title := strings.Trim(doc.Find(c.ChapterName).First().Text(), `\n~\t`)
 			txt, _ := doc.Find(c.Content).First().Html()
@@ -163,4 +158,12 @@ func Scrape(meta string) {
 		}
 	}
 	color.HiGreen("生成完毕! 用时: %v", time.Since(start))
+}
+
+// 编码转换
+func convertEncoding(rd io.Reader) io.Reader {
+	if !Unicode {
+		return simplifiedchinese.GBK.NewDecoder().Reader(rd)
+	}
+	return rd
 }
