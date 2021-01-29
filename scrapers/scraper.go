@@ -59,8 +59,8 @@ func Scrape(meta string) {
 	start := time.Now()
 	// 获取主页信息
 	page, err := client.Do(mustGetRq(meta))
-	if err != nil || page.StatusCode == 302 {
-		color.Red("无法获取章节列表 %s", err.Error())
+	if err != nil {
+		color.Red("无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
 	defer page.Body.Close()
@@ -72,7 +72,7 @@ func Scrape(meta string) {
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
-		go func(id int, url string) {
+		go func(id int, subpath string) {
 			defer func() {
 				wg.Done()
 				<-max
@@ -80,12 +80,17 @@ func Scrape(meta string) {
 				now := atomic.AddInt32(&total, 1)
 				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
 			}()
-			spage, err := client.Do(mustGetRq(c.Prefix + url))
-			if err != nil || page.StatusCode != http.StatusOK {
+
+			// 处理拼接路径问题
+			u, _ := url.Parse(c.Prefix)
+			u.Path = path.Join(u.Path, subpath)
+			//fmt.Println(u.String(), "\t", subpath)
+			spage, err := client.Do(mustGetRq(u.String()))
+			if err != nil || spage.StatusCode != http.StatusOK {
 				color.Yellow("本章下载失败！")
 				time.Sleep(time.Second * 3)
 				// 再试一次
-				spage, err = client.Do(mustGetRq(c.Prefix + url))
+				spage, err = client.Do(mustGetRq(u.String()))
 				if err != nil || spage.StatusCode != http.StatusOK {
 					color.Red("达到最大重试次数")
 					return
