@@ -6,10 +6,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,19 +39,26 @@ func Scrape(meta string) {
 	// 处理目录中链接拼接问题
 	if Extend {
 		m, err1 := url.Parse(meta)
-		h, err2 := url.Parse(c.Host)
+		h, err2 := url.Parse(c.Prefix)
 		if err1 != nil || err2 != nil {
 			color.Red("host解析错误")
 			os.Exit(2)
 		}
 		h.Path = m.EscapedPath()
-		c.Host = h.String()
+		c.Prefix = h.String()
+	}
+
+	// 反爬，顺便存储cookie
+	jar, _ := cookiejar.New(nil)
+	client := http.Client{
+		Jar:     jar,
+		Timeout: 0,
 	}
 
 	// 开始计时
 	start := time.Now()
 	// 获取主页信息
-	page, err := http.Get(meta)
+	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode == 302 {
 		color.Red("无法获取章节列表 %s", err.Error())
 		os.Exit(2)
@@ -71,30 +80,35 @@ func Scrape(meta string) {
 				now := atomic.AddInt32(&total, 1)
 				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
 			}()
-			spage, err := http.Get(c.Host + url)
-			if err != nil || page.StatusCode == 302 {
-				color.Red("本章下载失败！")
-				return
+			spage, err := client.Do(mustGetRq(c.Prefix + url))
+			if err != nil || page.StatusCode != http.StatusOK {
+				color.Yellow("本章下载失败！")
+				time.Sleep(time.Second * 3)
+				// 再试一次
+				spage, err = client.Do(mustGetRq(c.Prefix + url))
+				if err != nil || spage.StatusCode != http.StatusOK {
+					color.Red("达到最大重试次数")
+					return
+				}
 			}
 			defer spage.Body.Close()
 
-			// 内容操作
+			// 获取内容并格式化
 			doc, _ := goquery.NewDocumentFromReader(convertEncoding(spage.Body))
-			// 标题和内容（原始）
 			title := strings.Trim(doc.Find(c.ChapterName).First().Text(), `\n~\t`)
 			txt, _ := doc.Find(c.Content).First().Html()
-			// 多重替换，稍后写入
-			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n")
-			// 打开文件
+			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n").Replace(txt)
+			txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
+
+			// 写入到文件
 			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
 			if err != nil {
 				color.Red("无法创建文件")
 				return
 			}
-			// 执行写入
+			defer f.Close()
 			fmt.Fprintf(f, "%s\n\n", title)
-			rp.WriteString(f, txt)
-
+			f.WriteString(txt)
 		}(i, s.AttrOr("href", ""))
 		// 限制速度
 		if Limit {
@@ -116,9 +130,8 @@ func Scrape(meta string) {
 	}
 	bf := bufio.NewWriter(f)
 
-	// 生成列表
+	// 按数字顺序读取
 	dir, err := os.Open(tmp)
-	defer dir.Close()
 	if err != nil {
 		color.Red("无法打开临时目录")
 		os.Exit(2)
@@ -128,14 +141,15 @@ func Scrape(meta string) {
 		color.Red("临时目录信息无法获取")
 		os.Exit(2)
 	}
-	// 对文件名称进行排序
+	// 需要在删除前关闭
+	dir.Close()
 	sort.Slice(chunks, func(i, j int) bool {
 		a, _ := strconv.Atoi(chunks[i][:strings.LastIndex(chunks[i], ".")])
 		b, _ := strconv.Atoi(chunks[j][:strings.LastIndex(chunks[j], ".")])
 		return a < b
 	})
 
-	// 跳过不需要的
+	// 写入需要的内容
 	for _, v := range chunks[Jump:] {
 		ct, err := ioutil.ReadFile(path.Join(tmp, v))
 		if err != nil {
@@ -151,7 +165,9 @@ func Scrape(meta string) {
 		bf.WriteString("\n\n")
 	}
 	bf.Flush()
-	if !Single {
+
+	// 确保dir已经Close
+	if Single {
 		err = os.RemoveAll(tmp)
 		if err != nil {
 			color.Red("清理任务失败，跳过")
@@ -166,4 +182,15 @@ func convertEncoding(rd io.Reader) io.Reader {
 		return simplifiedchinese.GBK.NewDecoder().Reader(rd)
 	}
 	return rd
+}
+
+// 生成请求
+func mustGetRq(uri string) *http.Request {
+	rq, err := http.NewRequest(http.MethodGet, uri, nil)
+	if err != nil {
+		color.Red("请求构建失败")
+		os.Exit(2)
+	}
+	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36 Edg/88.0.705.53")
+	return rq
 }

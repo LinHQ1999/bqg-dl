@@ -26,7 +26,8 @@ var (
 	Jump int
 	// Single 保留单章
 	Single bool
-	c      *C
+	// 配置文件的配置
+	c *C
 )
 
 func init() {
@@ -37,8 +38,8 @@ func init() {
 
 // C 配置信息
 type C struct {
-	// Host 域名
-	Host string
+	// Prefix 域名
+	Prefix string
 	// 以下为选择器
 	//SBookName 书名
 	BookName string
