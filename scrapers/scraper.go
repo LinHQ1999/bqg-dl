@@ -1,6 +1,7 @@
 package scrapers
 
 import (
+	"bqg/utils"
 	"bufio"
 	"fmt"
 	"io"
@@ -14,10 +15,8 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	str "strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -32,7 +31,6 @@ func Scrape(meta string) {
 	os.MkdirAll(tmp, os.ModeDir)
 
 	// 并发控制
-	var total int32 = 0
 	max := make(chan struct{}, Threads)
 	wg := sync.WaitGroup{}
 
@@ -69,6 +67,7 @@ func Scrape(meta string) {
 	name := doc.Find(c.BookName).First().Text()
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
+	bar := utils.NewBar(int32(all.Length()))
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
@@ -76,9 +75,7 @@ func Scrape(meta string) {
 			defer func() {
 				wg.Done()
 				<-max
-				// 进度条处理
-				now := atomic.AddInt32(&total, 1)
-				fmt.Printf("已下载: %.2f%% 总计%d章\r", float32(now)/float32(len(all.Nodes))*100, len(all.Nodes))
+				fmt.Print(bar.AddAndShow(1))
 			}()
 
 			// 处理拼接路径问题
@@ -100,7 +97,7 @@ func Scrape(meta string) {
 
 			// 获取内容并格式化
 			doc, _ := goquery.NewDocumentFromReader(convertEncoding(spage.Body))
-			title := strings.Trim(doc.Find(c.ChapterName).First().Text(), `\n~\t`)
+			title := str.Trim(doc.Find(c.ChapterName).First().Text(), `~#`)
 			txt, _ := doc.Find(c.Content).First().Html()
 			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n").Replace(txt)
 			txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
@@ -128,11 +125,11 @@ func Scrape(meta string) {
 
 	// 创建目标文件
 	f, err := os.Create(path.Join(name + ".txt"))
-	defer f.Close()
 	if err != nil {
 		color.Red("无法创建文件")
 		os.Exit(2)
 	}
+	defer f.Close()
 	bf := bufio.NewWriter(f)
 
 	// 按数字顺序读取
@@ -149,8 +146,8 @@ func Scrape(meta string) {
 	// 需要在删除前关闭
 	dir.Close()
 	sort.Slice(chunks, func(i, j int) bool {
-		a, _ := strconv.Atoi(chunks[i][:strings.LastIndex(chunks[i], ".")])
-		b, _ := strconv.Atoi(chunks[j][:strings.LastIndex(chunks[j], ".")])
+		a, _ := strconv.Atoi(chunks[i][:str.LastIndex(chunks[i], ".")])
+		b, _ := strconv.Atoi(chunks[j][:str.LastIndex(chunks[j], ".")])
 		return a < b
 	})
 
