@@ -16,8 +16,6 @@ import (
 var (
 	// Extend 扩展基准url
 	Extend bool
-	// Unicode 是否是unicode
-	Unicode bool
 	// Threads 线程数
 	Threads int
 	// Limit 限速
@@ -41,13 +39,13 @@ type C struct {
 	// Prefix 域名
 	Prefix string
 	// 以下为选择器
-	//SBookName 书名
+	// BookName 书名
 	BookName string
-	//SContentList 目录
+	// ContentList 目录
 	ContentList string
-	//SChapterName  章节名
+	// ChapterName  章节名
 	ChapterName string
-	//SContent  正文
+	// Content  正文
 	Content string
 }
 

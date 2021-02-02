@@ -24,15 +24,34 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
+var (
+	utf = false
+
+	tmp    string
+	max    chan struct{}
+	wg     sync.WaitGroup
+	bar    *utils.Bar
+	client http.Client
+)
+
+func init() {
+	// 反爬，顺便存储cookie
+	jar, _ := cookiejar.New(nil)
+	client = http.Client{
+		Jar:     jar,
+		Timeout: time.Second * 18,
+	}
+}
+
 // Scrape 启动
 func Scrape(meta string) {
 	// 环境配置
-	tmp := filepath.Join("chunk")
+	tmp = filepath.Join("chunk")
 	os.MkdirAll(tmp, os.ModeDir)
 
 	// 并发控制
-	max := make(chan struct{}, Threads)
-	wg := sync.WaitGroup{}
+	max = make(chan struct{}, Threads)
+	wg = sync.WaitGroup{}
 
 	// 处理目录中链接拼接问题
 	if Extend {
@@ -46,72 +65,34 @@ func Scrape(meta string) {
 		c.Prefix = h.String()
 	}
 
-	// 反爬，顺便存储cookie
-	jar, _ := cookiejar.New(nil)
-	client := http.Client{
-		Jar:     jar,
-		Timeout: 0,
-	}
-
 	// 开始计时
 	start := time.Now()
 	// 获取主页信息
 	page, err := client.Do(mustGetRq(meta))
-	if err != nil {
+	if err != nil || page.StatusCode != http.StatusOK {
 		color.Red("\n无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
 	defer page.Body.Close()
 
-	doc, _ := goquery.NewDocumentFromReader(page.Body)
+	doc, err := goquery.NewDocumentFromReader(page.Body)
+	if err != nil {
+		color.Red("%v", err)
+		return
+	}
 	name := doc.Find(c.BookName).First().Text()
+	// 编码探测
+	head, _ := doc.Find("head").First().Html()
+	if str.Contains(head, "UTF") {
+		utf = true
+	}
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
-	bar := utils.NewBar(int32(all.Length()))
+	bar = utils.NewBar(int32(all.Length()))
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
-		go func(id int, subpath string) {
-			defer func() {
-				wg.Done()
-				<-max
-				fmt.Print(color.HiMagentaString(bar.AddAndShow(1)))
-			}()
-
-			// 处理拼接路径问题
-			u, _ := url.Parse(c.Prefix)
-			u.Path = path.Join(u.Path, subpath)
-			//fmt.Println(u.String(), "\t", subpath)
-			spage, err := client.Do(mustGetRq(u.String()))
-			if err != nil || spage.StatusCode != http.StatusOK {
-				color.Yellow("\n本章下载失败！")
-				time.Sleep(time.Second * 3)
-				// 再试一次
-				spage, err = client.Do(mustGetRq(u.String()))
-				if err != nil || spage.StatusCode != http.StatusOK {
-					color.Red("\n达到最大重试次数")
-					return
-				}
-			}
-			defer spage.Body.Close()
-
-			// 获取内容并格式化
-			doc, _ := goquery.NewDocumentFromReader(convertEncoding(spage.Body))
-			title := str.Trim(doc.Find(c.ChapterName).First().Text(), `~#`)
-			txt, _ := doc.Find(c.Content).First().Html()
-			rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n").Replace(txt)
-			txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
-
-			// 写入到文件
-			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
-			if err != nil {
-				color.Red("\n无法创建文件")
-				return
-			}
-			defer f.Close()
-			fmt.Fprintf(f, "%s\n\n", title)
-			f.WriteString(txt)
-		}(i, s.AttrOr("href", ""))
+		go fetchContent(i, s.AttrOr("href", ""), 3)
 		// 限制速度
 		if Limit {
 			time.Sleep(time.Millisecond * 150)
@@ -179,8 +160,8 @@ func Scrape(meta string) {
 }
 
 // 编码转换
-func convertEncoding(rd io.Reader) io.Reader {
-	if !Unicode {
+func g2u(rd io.Reader) io.Reader {
+	if !utf {
 		return simplifiedchinese.GBK.NewDecoder().Reader(rd)
 	}
 	return rd
@@ -195,4 +176,52 @@ func mustGetRq(uri string) *http.Request {
 	}
 	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36 Edg/88.0.705.53")
 	return rq
+}
+
+// fetchContent 获取章节内容并写入文件
+func fetchContent(id int, subpath string, retry int) {
+	if retry < 0 {
+		color.Red("\n达到最大重试次数，%s下载失败！", subpath)
+		return
+	}
+	// 处理拼接路径问题
+	u, _ := url.Parse(c.Prefix)
+	u.Path = path.Join(u.Path, subpath)
+	//fmt.Println(u.String(), "\t", subpath)
+	spage, err := client.Do(mustGetRq(u.String()))
+	if err != nil || spage.StatusCode != http.StatusOK {
+		//color.Yellow("\n重试: %s", path.Base(subpath))
+		time.Sleep(time.Second * 3)
+		fetchContent(id, subpath, retry-1)
+		return
+	}
+	defer spage.Body.Close()
+
+	// 获取内容并格式化
+	doc, err := goquery.NewDocumentFromReader(g2u(spage.Body))
+	if err != nil {
+		//color.Yellow("\n重试: %s", path.Base(subpath))
+		time.Sleep(time.Second * 3)
+		fetchContent(id, subpath, retry-1)
+		return
+	}
+	title := doc.Find(c.ChapterName).First().Text()
+	txt, _ := doc.Find(c.Content).First().Html()
+	rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n").Replace(txt)
+	txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
+
+	// 写入到文件
+	f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
+	if err != nil {
+		color.Red("\n无法创建文件")
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s\n\n", title)
+	f.WriteString(txt)
+
+	// 避免重试导致多减,不要放在defer里
+	wg.Done()
+	<-max
+	fmt.Print(color.HiMagentaString(bar.AddAndShow(1)))
 }
