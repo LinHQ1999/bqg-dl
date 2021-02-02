@@ -58,7 +58,7 @@ func Scrape(meta string) {
 	// 获取主页信息
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil {
-		color.Red("无法获取章节列表 %v", err)
+		color.Red("\n无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
 	defer page.Body.Close()
@@ -75,7 +75,7 @@ func Scrape(meta string) {
 			defer func() {
 				wg.Done()
 				<-max
-				fmt.Print(bar.AddAndShow(1))
+				fmt.Print(color.HiMagentaString(bar.AddAndShow(1)))
 			}()
 
 			// 处理拼接路径问题
@@ -84,12 +84,12 @@ func Scrape(meta string) {
 			//fmt.Println(u.String(), "\t", subpath)
 			spage, err := client.Do(mustGetRq(u.String()))
 			if err != nil || spage.StatusCode != http.StatusOK {
-				color.Yellow("本章下载失败！")
+				color.Yellow("\n本章下载失败！")
 				time.Sleep(time.Second * 3)
 				// 再试一次
 				spage, err = client.Do(mustGetRq(u.String()))
 				if err != nil || spage.StatusCode != http.StatusOK {
-					color.Red("达到最大重试次数")
+					color.Red("\n达到最大重试次数")
 					return
 				}
 			}
@@ -105,7 +105,7 @@ func Scrape(meta string) {
 			// 写入到文件
 			f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
 			if err != nil {
-				color.Red("无法创建文件")
+				color.Red("\n无法创建文件")
 				return
 			}
 			defer f.Close()
@@ -126,7 +126,7 @@ func Scrape(meta string) {
 	// 创建目标文件
 	f, err := os.Create(path.Join(name + ".txt"))
 	if err != nil {
-		color.Red("无法创建文件")
+		color.Red("\n无法创建文件")
 		os.Exit(2)
 	}
 	defer f.Close()
@@ -135,12 +135,12 @@ func Scrape(meta string) {
 	// 按数字顺序读取
 	dir, err := os.Open(tmp)
 	if err != nil {
-		color.Red("无法打开临时目录")
+		color.Red("\n无法打开临时目录")
 		os.Exit(2)
 	}
 	chunks, err := dir.Readdirnames(-1)
 	if err != nil {
-		color.Red("临时目录信息无法获取")
+		color.Red("\n临时目录信息无法获取")
 		os.Exit(2)
 	}
 	// 需要在删除前关闭
@@ -155,12 +155,12 @@ func Scrape(meta string) {
 	for _, v := range chunks[Jump:] {
 		ct, err := ioutil.ReadFile(path.Join(tmp, v))
 		if err != nil {
-			color.Red("无法获取块")
+			color.Red("\n无法获取块")
 			os.Exit(2)
 		}
 		_, err = bf.Write(ct)
 		if err != nil {
-			color.Red("写入失败")
+			color.Red("\n写入失败")
 			os.Exit(2)
 		}
 		// 写入一个空行
@@ -190,7 +190,7 @@ func convertEncoding(rd io.Reader) io.Reader {
 func mustGetRq(uri string) *http.Request {
 	rq, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
-		color.Red("请求构建失败")
+		color.Red("\n请求构建失败")
 		os.Exit(2)
 	}
 	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36 Edg/88.0.705.53")
