@@ -18,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		scrapers.Scrape(args[0])
 	},
-	Version: "1.3.1",
+	Version: "1.3.2",
 }
 
 func init() {

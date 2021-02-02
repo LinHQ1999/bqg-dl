@@ -82,8 +82,8 @@ func Scrape(meta string) {
 	}
 	name := doc.Find(c.BookName).First().Text()
 	// 编码探测
-	head, _ := doc.Find("head").First().Html()
-	if str.Contains(head, "UTF") {
+	head, _ := doc.Html()
+	if str.Contains(head, "UTF") || str.Contains(head, "utf") {
 		utf = true
 	}
 	// 遍历目录, 下载书籍

@@ -1,0 +1,5 @@
+bookname: '#info>h1'
+chaptername: .bookname h1
+content: '#content'
+contentlist: '#list dd>a'
+prefix: http://www.biqugse.com
