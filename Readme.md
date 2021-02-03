@@ -1,16 +1,23 @@
 # 笔趣阁小说下载器
 
-> 默认支持：[笔趣阁](https://www.biquduo.com/)
+> [默认配置](https://www.biquduo.com/)
 
 ## 使用方式
 
-从以上网址中找到书籍的主页（可以看到目录的页面），然后将url复制下来作为参数。
+从以上网址（或配置文件中对应网址）中找到需要的书籍主页（可以看到目录的页面），然后将url复制下来作为参数。
 
 ```powershell
 .\bqg.exe <url>
 
-# 使用 -h 参数查看更多选项
+# 更多选项
+.\bqg.exe -h
+
+# 报下载错误，尝试
+.\bqg.exe --ex <url>
 ```
+
+![da7502dfabd75ef2ccc710feabb34c49.png](da7502dfabd75ef2ccc710feabb34c49.png)
+
 
 ## 配置
 
