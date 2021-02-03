@@ -3,6 +3,7 @@ package scrapers
 import (
 	"os"
 	"path"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/viper"
@@ -12,14 +13,19 @@ import (
 仅供微调
 */
 
+const (
+	retryDelay = time.Second * 5
+	timeout    = time.Second * 30
+)
+
 // 间隔时间
 var (
 	// Extend 扩展基准url
 	Extend bool
 	// Threads 线程数
 	Threads int
-	// Limit 限速
-	Limit bool
+	// Retry 重试次数
+	Retry int
 	// Jump 跳过前面几章
 	Jump int
 	// Single 保留单章

@@ -39,7 +39,7 @@ func init() {
 	jar, _ := cookiejar.New(nil)
 	client = http.Client{
 		Jar:     jar,
-		Timeout: time.Second * 18,
+		Timeout: timeout,
 	}
 }
 
@@ -92,11 +92,7 @@ func Scrape(meta string) {
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
-		go fetchContent(i, s.AttrOr("href", ""), 3)
-		// 限制速度
-		if Limit {
-			time.Sleep(time.Millisecond * 150)
-		}
+		go fetchContent(i, s.AttrOr("href", ""), Retry)
 	})
 	close(max)
 	// 等待所有的协程完成
@@ -191,7 +187,7 @@ func fetchContent(id int, subpath string, retry int) {
 	spage, err := client.Do(mustGetRq(u.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
 		//color.Yellow("\n重试: %s", path.Base(subpath))
-		time.Sleep(time.Second * 3)
+		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
 	}
@@ -201,7 +197,7 @@ func fetchContent(id int, subpath string, retry int) {
 	doc, err := goquery.NewDocumentFromReader(g2u(spage.Body))
 	if err != nil {
 		//color.Yellow("\n重试: %s", path.Base(subpath))
-		time.Sleep(time.Second * 3)
+		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
 	}
