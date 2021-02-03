@@ -88,7 +88,7 @@ func Scrape(meta string) {
 	}
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
-	bar = utils.NewBar(int32(all.Length()))
+	bar = utils.NewBar(int32(all.Length()), 50)
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
