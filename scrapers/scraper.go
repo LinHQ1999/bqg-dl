@@ -177,7 +177,7 @@ func mustGetRq(uri string) *http.Request {
 // fetchContent 获取章节内容并写入文件
 func fetchContent(id int, subpath string, retry int) {
 	if retry < 0 {
-		color.Red("\n达到最大重试次数，%s下载失败！", subpath)
+		color.Red("\n达到最大重试次数，%d <> %s下载失败！", id, subpath)
 		return
 	}
 	// 处理拼接路径问题
