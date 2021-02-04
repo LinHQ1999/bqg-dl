@@ -3,6 +3,7 @@ package scrapers
 import (
 	"bqg/utils"
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,7 +36,7 @@ var (
 )
 
 func init() {
-	// 反爬，顺便存储cookie
+	// 反爬，存储cookie
 	jar, _ := cookiejar.New(nil)
 	client = http.Client{
 		Jar:     jar,
@@ -73,19 +74,23 @@ func Scrape(meta string) {
 		color.Red("\n无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
+	pgContent, err := ioutil.ReadAll(page.Body)
+	if err != nil {
+		return
+	}
+	// <meta ... charset="utf-8">
+	if regexp.MustCompile(`meta.+(utf|UTF)`).Match(pgContent) {
+		utf = true
+	}
 	defer page.Body.Close()
 
-	doc, err := goquery.NewDocumentFromReader(page.Body)
+	doc, err := goquery.NewDocumentFromReader(g2u(pgContent))
 	if err != nil {
 		color.Red("%v", err)
 		return
 	}
 	name := doc.Find(c.BookName).First().Text()
 	// 编码探测
-	head, _ := doc.Html()
-	if str.Contains(head, "UTF") || str.Contains(head, "utf") {
-		utf = true
-	}
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
 	bar = utils.NewBar(int32(all.Length()), 50)
@@ -156,11 +161,16 @@ func Scrape(meta string) {
 }
 
 // 编码转换
-func g2u(rd io.Reader) io.Reader {
+func g2u(txt []byte) io.Reader {
 	if !utf {
-		return simplifiedchinese.GBK.NewDecoder().Reader(rd)
+		rs, err := simplifiedchinese.GBK.NewDecoder().Bytes(txt)
+		if err != nil {
+			color.Red("编码转换失败!")
+			os.Exit(1)
+		}
+		return bytes.NewReader(rs)
 	}
-	return rd
+	return bytes.NewReader(txt)
 }
 
 // 生成请求
@@ -191,10 +201,15 @@ func fetchContent(id int, subpath string, retry int) {
 		fetchContent(id, subpath, retry-1)
 		return
 	}
+	spgContent, err := ioutil.ReadAll(spage.Body)
+	if err != nil {
+		color.Red("读取失败!")
+		return
+	}
 	defer spage.Body.Close()
 
 	// 获取内容并格式化
-	doc, err := goquery.NewDocumentFromReader(g2u(spage.Body))
+	doc, err := goquery.NewDocumentFromReader(g2u(spgContent))
 	if err != nil {
 		//color.Yellow("\n重试: %s", path.Base(subpath))
 		time.Sleep(retryDelay)
@@ -203,7 +218,7 @@ func fetchContent(id int, subpath string, retry int) {
 	}
 	title := doc.Find(c.ChapterName).First().Text()
 	txt, _ := doc.Find(c.Content).First().Html()
-	rp := str.NewReplacer("&nbsp", " ", "\n", "", "<br/>", "\n").Replace(txt)
+	rp := str.NewReplacer("&nbsp;", " ", "\n", "", "<br/>", "\n").Replace(txt)
 	txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
 
 	// 写入到文件
@@ -219,5 +234,5 @@ func fetchContent(id int, subpath string, retry int) {
 	// 避免重试导致多减,不要放在defer里
 	wg.Done()
 	<-max
-	fmt.Print(color.HiMagentaString(bar.AddAndShow(1)))
+	bar.AddAndShow(1)
 }
