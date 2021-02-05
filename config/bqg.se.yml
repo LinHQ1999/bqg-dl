@@ -1,5 +1,7 @@
-bookname: '#info>h1'
-chaptername: .bookname h1
-content: '#content'
-contentlist: '#list dd>a'
-prefix: http://www.biqugse.com
+book:
+  contentlist: '#list dd>a'
+  bookname: '#info>h1'
+  prefix: http://www.biqugse.com
+chapter:
+  chaptername: .bookname h1
+  content: '#content'

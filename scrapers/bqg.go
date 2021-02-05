@@ -42,13 +42,23 @@ func init() {
 
 // C 配置信息
 type C struct {
+	Book
+	Chapter
+}
+
+// Book 主页设置
+type Book struct {
 	// Prefix 域名
 	Prefix string
 	// 以下为选择器
-	// BookName 书名
-	BookName string
+	// Name 书名
+	Name string
 	// ContentList 目录
 	ContentList string
+}
+
+// Chapter 章节及内容设置
+type Chapter struct {
 	// ChapterName  章节名
 	ChapterName string
 	// Content  正文
@@ -61,11 +71,11 @@ func initConfig() {
 	viper.AddConfigPath(path.Join("."))
 
 	// 配置默认值
-	viper.SetDefault("Prefix", "https://www.biquduo.com")
-	viper.SetDefault("BookName", "#info>h1")
-	viper.SetDefault("ContentList", "#list dd>a")
-	viper.SetDefault("ChapterName", ".bookname h1")
-	viper.SetDefault("Content", "#content")
+	viper.SetDefault("Book.Prefix", "https://www.biquduo.com")
+	viper.SetDefault("Book.Name", "#info>h1")
+	viper.SetDefault("Book.ContentList", "#list dd>a")
+	viper.SetDefault("Chapter.ChapterName", ".bookname h1")
+	viper.SetDefault("Chapter.Content", "#content")
 
 	if err := viper.ReadInConfig(); err != nil {
 		switch err.(type) {

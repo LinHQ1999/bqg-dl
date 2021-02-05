@@ -89,7 +89,7 @@ func Scrape(meta string) {
 		color.Red("%v", err)
 		return
 	}
-	name := doc.Find(c.BookName).First().Text()
+	name := doc.Find(c.Name).First().Text()
 	// 编码探测
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
