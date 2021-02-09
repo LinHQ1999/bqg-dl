@@ -1,7 +1,6 @@
 book:
   contentlist: '#list dd>a'
   bookname: '#info>h1'
-  prefix: https://www.biqugg.com/
 chapter:
   content: '#content'
   chaptername: .bookname h1
