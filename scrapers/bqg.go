@@ -48,9 +48,6 @@ type C struct {
 
 // Book 主页设置
 type Book struct {
-	// Prefix 域名
-	Prefix string
-	// 以下为选择器
 	// Name 书名
 	Name string
 	// ContentList 目录
@@ -71,7 +68,6 @@ func initConfig() {
 	viper.AddConfigPath(path.Join("."))
 
 	// 配置默认值
-	viper.SetDefault("Book.Prefix", "https://www.biquduo.com")
 	viper.SetDefault("Book.Name", "#info>h1")
 	viper.SetDefault("Book.ContentList", "#list dd>a")
 	viper.SetDefault("Chapter.ChapterName", ".bookname h1")

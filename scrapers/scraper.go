@@ -28,6 +28,7 @@ import (
 var (
 	utf = false
 
+	basic  string
 	tmp    string
 	max    chan struct{}
 	wg     sync.WaitGroup
@@ -53,19 +54,6 @@ func Scrape(meta string) {
 	// 并发控制
 	max = make(chan struct{}, Threads)
 	wg = sync.WaitGroup{}
-
-	// 处理目录中链接拼接问题
-	if Extend {
-		m, err1 := url.Parse(meta)
-		h, err2 := url.Parse(c.Prefix)
-		if err1 != nil || err2 != nil {
-			color.Red("host解析错误")
-			os.Exit(2)
-		}
-		h.Path = m.EscapedPath()
-		c.Prefix = h.String()
-	}
-
 	// 开始计时
 	start := time.Now()
 	// 获取主页信息
@@ -78,7 +66,8 @@ func Scrape(meta string) {
 	if err != nil {
 		return
 	}
-	// <meta ... charset="utf-8">
+
+	// 编码探测:`<meta ... charset="utf-8">`
 	if regexp.MustCompile(`meta.+(utf|UTF)`).Match(pgContent) {
 		utf = true
 	}
@@ -90,7 +79,18 @@ func Scrape(meta string) {
 		return
 	}
 	name := doc.Find(c.Name).First().Text()
-	// 编码探测
+
+	// 处理目录中链接拼接问题
+	m, err := url.Parse(meta)
+	if err != nil {
+		color.Red("host解析错误")
+		os.Exit(2)
+	}
+	if !Extend {
+		m.Path = ""
+	}
+	basic = m.String()
+
 	// 遍历目录, 下载书籍
 	all := doc.Find(c.ContentList)
 	bar = utils.NewBar(int32(all.Length()), 50)
@@ -190,11 +190,11 @@ func fetchContent(id int, subpath string, retry int) {
 		color.Red("\n达到最大重试次数，%d <> %s下载失败！", id, subpath)
 		return
 	}
-	// 处理拼接路径问题
-	u, _ := url.Parse(c.Prefix)
-	u.Path = path.Join(u.Path, subpath)
-	//fmt.Println(u.String(), "\t", subpath)
-	spage, err := client.Do(mustGetRq(u.String()))
+	// 处理拼接路径问题，注意不要写共享变量
+	bsc, _ := url.Parse(basic)
+	bsc.Path = path.Join(bsc.Path, subpath)
+	//fmt.Println(bsc.String(), "\t", subpath)
+	spage, err := client.Do(mustGetRq(bsc.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
 		//color.Yellow("\n重试: %s", path.Base(subpath))
 		time.Sleep(retryDelay)
@@ -218,7 +218,7 @@ func fetchContent(id int, subpath string, retry int) {
 	}
 	title := doc.Find(c.ChapterName).First().Text()
 	txt, _ := doc.Find(c.Content).First().Html()
-	rp := str.NewReplacer("&nbsp;", " ", "\n", "", "<br/>", "\n").Replace(txt)
+	rp := str.NewReplacer("&nbsp;", " ", "\n", "", "<br/>", "\n").Replace(str.TrimSpace(txt))
 	txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
 
 	// 写入到文件
