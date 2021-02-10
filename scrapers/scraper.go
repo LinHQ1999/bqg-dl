@@ -28,12 +28,18 @@ import (
 var (
 	utf = false
 
-	basic  string
-	tmp    string
-	max    chan struct{}
-	wg     sync.WaitGroup
-	bar    *utils.Bar
+	// 并发限制
+	max chan struct{}
+	wg  sync.WaitGroup
+	// 进度条
+	bar *utils.Bar
+
 	client http.Client
+	// 只读
+	// 网址信息
+	basic string
+	// chunk 目录
+	tmp string
 )
 
 func init() {
@@ -78,6 +84,8 @@ func Scrape(meta string) {
 		color.Red("%v", err)
 		return
 	}
+
+	// 获取名称
 	name := doc.Find(c.Name).First().Text()
 
 	// 处理目录中链接拼接问题
@@ -89,6 +97,7 @@ func Scrape(meta string) {
 	if !Extend {
 		m.Path = ""
 	}
+	// 存储网站链接信息
 	basic = m.String()
 
 	// 遍历目录, 下载书籍
@@ -196,7 +205,6 @@ func fetchContent(id int, subpath string, retry int) {
 	//fmt.Println(bsc.String(), "\t", subpath)
 	spage, err := client.Do(mustGetRq(bsc.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
-		//color.Yellow("\n重试: %s", path.Base(subpath))
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
