@@ -61,7 +61,8 @@ func Scrape(meta string) {
 	max = make(chan struct{}, Threads)
 	wg = sync.WaitGroup{}
 	// 开始计时
-	start := time.Now()
+	t_start := time.Now()
+
 	// 获取主页信息
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode != http.StatusOK {
@@ -79,6 +80,7 @@ func Scrape(meta string) {
 	}
 	defer page.Body.Close()
 
+	// 在设定utf后
 	doc, err := goquery.NewDocumentFromReader(g2u(pgContent))
 	if err != nil {
 		color.Red("%v", err)
@@ -88,21 +90,37 @@ func Scrape(meta string) {
 	// 获取名称
 	name := doc.Find(c.Name).First().Text()
 
+	// 获取目录，初始化进度条
+	all := doc.Find(c.ContentList)
+	bar = utils.NewBar(int32(all.Length()), 50)
+
+	// 由用户选择是否扩展链接
+	ex, flg := false, ""
+	color.Yellow("目录的链接格式为:< %s >，使用扩展模式？[y/n]", all.First().AttrOr("href", ""))
+	fmt.Scanf("%s", &flg)
+	switch flg {
+	case "y":
+		ex = true
+	case "n":
+		ex = false
+	default:
+		ex = false
+		color.HiRed("无效选项，设定为%b!", ex)
+	}
+
 	// 处理目录中链接拼接问题
 	m, err := url.Parse(meta)
 	if err != nil {
 		color.Red("host解析错误")
 		os.Exit(2)
 	}
-	if !Extend {
+	if !ex {
 		m.Path = ""
 	}
 	// 存储网站链接信息
 	basic = m.String()
 
-	// 遍历目录, 下载书籍
-	all := doc.Find(c.ContentList)
-	bar = utils.NewBar(int32(all.Length()), 50)
+	// 遍历并下载
 	all.Each(func(i int, s *goquery.Selection) {
 		wg.Add(1)
 		max <- struct{}{}
@@ -111,6 +129,8 @@ func Scrape(meta string) {
 	close(max)
 	// 等待所有的协程完成
 	wg.Wait()
+
+	t_temp := time.Now()
 
 	color.Green("\n下载完毕，正在生成 ...")
 
@@ -166,10 +186,10 @@ func Scrape(meta string) {
 			color.Red("清理任务失败，跳过")
 		}
 	}
-	color.HiGreen("生成完毕! 用时: %v", time.Since(start))
+	color.HiGreen("生成完毕!\n\t下载用时：%v\n\t章节合并用时：%.1f秒", time.Since(t_start), time.Since(t_temp).Seconds())
 }
 
-// 编码转换
+// g2u 根据utf开关转换编码
 func g2u(txt []byte) io.Reader {
 	if !utf {
 		rs, err := simplifiedchinese.GBK.NewDecoder().Bytes(txt)

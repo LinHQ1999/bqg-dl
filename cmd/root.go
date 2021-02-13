@@ -20,7 +20,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		scrapers.Scrape(args[0])
 	},
-	Version: "1.5.0",
+	Version: "1.5.1",
 }
 
 func init() {
@@ -28,8 +28,6 @@ func init() {
 	rootCmd.Flags().IntVarP(&scrapers.Threads, "threads", "t", 16, "协程数量")
 	rootCmd.Flags().IntVarP(&scrapers.Retry, "retry", "r", 8, "重试次数")
 	rootCmd.Flags().BoolVar(&scrapers.Single, "single", true, "单个文件")
-	rootCmd.Flags().BoolVar(&scrapers.Extend, "ex", false, `扩展host以支持特定网站，比如书籍链接不是
-	完整的path的`)
 }
 
 // Execute main call

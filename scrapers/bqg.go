@@ -20,8 +20,6 @@ const (
 
 // 间隔时间
 var (
-	// Extend 扩展基准url
-	Extend bool
 	// Threads 线程数
 	Threads int
 	// Retry 重试次数
