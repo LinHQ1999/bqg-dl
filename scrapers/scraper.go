@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -69,7 +68,7 @@ func Scrape(meta string) {
 		color.Red("\n无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
-	pgContent, err := ioutil.ReadAll(page.Body)
+	pgContent, err := io.ReadAll(page.Body)
 	if err != nil {
 		return
 	}
@@ -164,7 +163,7 @@ func Scrape(meta string) {
 
 	// 写入需要的内容
 	for _, v := range chunks[Jump:] {
-		ct, err := ioutil.ReadFile(path.Join(tmp, v))
+		ct, err := os.ReadFile(path.Join(tmp, v))
 		if err != nil {
 			color.Red("\n无法获取块")
 			os.Exit(2)
@@ -229,7 +228,7 @@ func fetchContent(id int, subpath string, retry int) {
 		fetchContent(id, subpath, retry-1)
 		return
 	}
-	spgContent, err := ioutil.ReadAll(spage.Body)
+	spgContent, err := io.ReadAll(spage.Body)
 	if err != nil {
 		color.Red("读取失败!")
 		return
