@@ -18,7 +18,7 @@ const (
 	timeout    = time.Second * 30
 )
 
-// 间隔时间
+// 配置参数
 var (
 	// Threads 线程数
 	Threads int
@@ -28,7 +28,7 @@ var (
 	Jump int
 	// Single 保留单章
 	Single bool
-	// 配置文件的配置
+	// 配置文件
 	c *C
 )
 

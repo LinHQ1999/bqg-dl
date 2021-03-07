@@ -201,7 +201,7 @@ func g2u(txt []byte) io.Reader {
 	return bytes.NewReader(txt)
 }
 
-// 生成请求
+// MustGetRq Build a Request
 func mustGetRq(uri string) *http.Request {
 	rq, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
@@ -212,7 +212,7 @@ func mustGetRq(uri string) *http.Request {
 	return rq
 }
 
-// fetchContent 获取章节内容并写入文件
+// FetchContent 获取章节内容并写入文件
 func fetchContent(id int, subpath string, retry int) {
 	if retry < 0 {
 		color.Red("\n达到最大重试次数，%d <> %s下载失败！", id, subpath)
