@@ -12,7 +12,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "bqg <书籍主页链接>",
 	Short: "下载笔趣阁的书籍",
-	Long: `默认配置：https://www.biquduo.com，
+	Long: `默认配置：https://www.biduoxs.com，
 
 	其它支持网站可参考config中的配置文件。
 	`,
@@ -20,7 +20,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		scrapers.Scrape(args[0])
 	},
-	Version: "1.5.2",
+	Version: "1.5.3",
 }
 
 func init() {
