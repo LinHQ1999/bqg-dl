@@ -1,0 +1,7 @@
+# http://www.biqugev.com/
+book:
+  contentlist: '.listmain dd>a'
+  name: '#info>h1'
+chapter:
+  chaptername: .content h1
+  content: '#content'

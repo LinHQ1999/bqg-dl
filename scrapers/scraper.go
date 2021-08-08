@@ -185,7 +185,7 @@ func Scrape(meta string) {
 			color.Red("清理任务失败，跳过")
 		}
 	}
-	color.HiGreen("生成完毕!\n\t下载用时：%v\n\t章节合并用时：%.1f秒", time.Since(t_start), time.Since(t_temp).Seconds())
+	color.HiGreen("生成完毕!\n\n下载用时：%.1f秒\n章节合并用时：%.1f秒", time.Since(t_start).Seconds(), time.Since(t_temp).Seconds())
 }
 
 // g2u 根据utf开关转换编码
