@@ -128,9 +128,10 @@ func Scrape(meta string) {
 	// 等待所有的协程完成
 	wg.Wait()
 
-	t_temp := time.Now()
+	color.Green("\n下载完毕（%.1f 秒），正在生成 ...", time.Since(t_start))
 
-	color.Green("\n下载完毕，正在生成 ...")
+	// 开始记录生成时间
+	t_temp := time.Now()
 
 	// 创建最终文件
 	f, err := os.Create(path.Join(name + ".txt"))
@@ -167,7 +168,7 @@ func Scrape(meta string) {
 			color.Red("清理任务失败，跳过")
 		}
 	}
-	color.HiGreen("生成完毕!\n\n下载用时：%.1f秒\n章节合并用时：%.1f秒", time.Since(t_start).Seconds(), time.Since(t_temp).Seconds())
+	color.HiGreen("生成完毕（%.1f 秒）！",  time.Since(t_temp).Seconds())
 }
 
 // g2u 根据utf开关转换编码
