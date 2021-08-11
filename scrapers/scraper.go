@@ -128,7 +128,7 @@ func Scrape(meta string) {
 	// 等待所有的协程完成
 	wg.Wait()
 
-	color.Green("\n下载完毕（%.1f 秒），正在生成 ...", time.Since(t_start))
+	color.Green("\n下载完毕（%.1f 秒），正在生成 ...", time.Since(t_start).Seconds())
 
 	// 开始记录生成时间
 	t_temp := time.Now()
@@ -143,7 +143,7 @@ func Scrape(meta string) {
 	bf := bufio.NewWriter(f)
 
 	/*
-	文件名是编号，所以可以直接根据编号打开文件，而不用全部打开再排序
+		文件名是编号，所以可以直接根据编号打开文件，而不用全部打开再排序
 	*/
 	for chunkID := Jump + 1; chunkID <= all.Length(); chunkID++ {
 		ct, err := os.ReadFile(path.Join(tmp, fmt.Sprintf("%d.txt", chunkID)))
@@ -168,7 +168,7 @@ func Scrape(meta string) {
 			color.Red("清理任务失败，跳过")
 		}
 	}
-	color.HiGreen("生成完毕（%.1f 秒）！",  time.Since(t_temp).Seconds())
+	color.HiGreen("生成完毕（%.1f 秒）！", time.Since(t_temp).Seconds())
 }
 
 // g2u 根据utf开关转换编码
@@ -198,7 +198,10 @@ func mustGetRq(uri string) *http.Request {
 // FetchContent 获取章节内容并写入文件
 func fetchContent(id int, subpath string, retry int) {
 	if retry < 0 {
-		color.Red("\n达到最大重试次数，%d <> %s下载失败！", id, subpath)
+		color.Red("\n达到最大重试次数，%d 块下载失败！", id, subpath)
+		wg.Done()
+		<-max
+		bar.AddAndShow(1)
 		return
 	}
 	// 处理拼接路径问题，注意不要写共享变量
@@ -207,21 +210,23 @@ func fetchContent(id int, subpath string, retry int) {
 	//fmt.Println(bsc.String(), "\t", subpath)
 	spage, err := client.Do(mustGetRq(bsc.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
+		color.Red("\n %d 块将重试下载", id)
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
 	}
+	defer spage.Body.Close()
 	spgContent, err := io.ReadAll(spage.Body)
 	if err != nil {
-		color.Red("读取失败!")
+		color.Red("\n无法读取块内容! --> %s", err.Error())
+		time.Sleep(retryDelay)
+		fetchContent(id, subpath, retry-1)
 		return
 	}
-	defer spage.Body.Close()
 
 	// 获取内容并格式化
 	doc, err := goquery.NewDocumentFromReader(g2u(spgContent))
 	if err != nil {
-		//color.Yellow("\n重试: %s", path.Base(subpath))
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return

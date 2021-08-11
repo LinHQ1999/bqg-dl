@@ -20,13 +20,13 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		scrapers.Scrape(args[0])
 	},
-	Version: "1.6.1",
+	Version: "1.6.2",
 }
 
 func init() {
 	rootCmd.Flags().IntVarP(&scrapers.Jump, "jump", "j", 0, "跳过几章")
 	rootCmd.Flags().IntVarP(&scrapers.Threads, "threads", "t", 16, "协程数量")
-	rootCmd.Flags().IntVarP(&scrapers.Retry, "retry", "r", 8, "重试次数")
+	rootCmd.Flags().IntVarP(&scrapers.Retry, "retry", "r", 5, "重试次数")
 	rootCmd.Flags().BoolVar(&scrapers.Dry, "dry", false, "测试模式")
 }
 
