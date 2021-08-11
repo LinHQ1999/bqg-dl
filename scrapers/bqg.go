@@ -26,8 +26,8 @@ var (
 	Retry int
 	// Jump 跳过前面几章
 	Jump int
-	// Single 保留单章
-	Single bool
+	// Dry 保留单章
+	Dry bool
 	// 配置文件
 	c *C
 )

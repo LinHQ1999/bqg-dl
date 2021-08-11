@@ -13,8 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strconv"
 	str "strings"
 	"sync"
 	"time"
@@ -53,7 +51,7 @@ func init() {
 // Scrape 启动
 func Scrape(meta string) {
 	// 环境配置
-	tmp = filepath.Join("chunk")
+	tmp = filepath.Join("chunks")
 	os.MkdirAll(tmp, os.ModeDir)
 
 	// 并发控制
@@ -62,12 +60,14 @@ func Scrape(meta string) {
 	// 开始计时
 	t_start := time.Now()
 
-	// 获取主页信息
+	// 获取章节列表
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode != http.StatusOK {
 		color.Red("\n无法获取章节列表 %v", err)
 		os.Exit(2)
 	}
+	defer page.Body.Close()
+
 	pgContent, err := io.ReadAll(page.Body)
 	if err != nil {
 		return
@@ -77,7 +77,6 @@ func Scrape(meta string) {
 	if regexp.MustCompile(`meta.+(utf|UTF)`).Match(pgContent) {
 		utf = true
 	}
-	defer page.Body.Close()
 
 	// 在设定utf后
 	doc, err := goquery.NewDocumentFromReader(g2u(pgContent))
@@ -107,7 +106,7 @@ func Scrape(meta string) {
 		color.HiRed("无效选项，设定为%b!", ex)
 	}
 
-	// 处理目录中链接拼接问题
+	// 根据情况扩展 basic，防止连接拼接出错
 	m, err := url.Parse(meta)
 	if err != nil {
 		color.Red("host解析错误")
@@ -133,7 +132,7 @@ func Scrape(meta string) {
 
 	color.Green("\n下载完毕，正在生成 ...")
 
-	// 创建目标文件
+	// 创建最终文件
 	f, err := os.Create(path.Join(name + ".txt"))
 	if err != nil {
 		color.Red("\n无法创建文件")
@@ -142,30 +141,13 @@ func Scrape(meta string) {
 	defer f.Close()
 	bf := bufio.NewWriter(f)
 
-	// 按数字顺序读取
-	dir, err := os.Open(tmp)
-	if err != nil {
-		color.Red("\n无法打开临时目录")
-		os.Exit(2)
-	}
-	chunks, err := dir.Readdirnames(-1)
-	if err != nil {
-		color.Red("\n临时目录信息无法获取")
-		os.Exit(2)
-	}
-	// 需要在删除前关闭
-	dir.Close()
-	sort.Slice(chunks, func(i, j int) bool {
-		a, _ := strconv.Atoi(chunks[i][:str.LastIndex(chunks[i], ".")])
-		b, _ := strconv.Atoi(chunks[j][:str.LastIndex(chunks[j], ".")])
-		return a < b
-	})
-
-	// 写入需要的内容
-	for _, v := range chunks[Jump:] {
-		ct, err := os.ReadFile(path.Join(tmp, v))
+	/*
+	文件名是编号，所以可以直接根据编号打开文件，而不用全部打开再排序
+	*/
+	for chunkID := Jump + 1; chunkID <= all.Length(); chunkID++ {
+		ct, err := os.ReadFile(path.Join(tmp, fmt.Sprintf("%d.txt", chunkID)))
 		if err != nil {
-			color.Red("\n无法获取块")
+			color.Red("\n无法获取指定分块：%d", chunkID)
 			os.Exit(2)
 		}
 		_, err = bf.Write(ct)
@@ -178,8 +160,8 @@ func Scrape(meta string) {
 	}
 	bf.Flush()
 
-	// 确保dir已经Close
-	if Single {
+	// 根据选项移除临时目录
+	if !Dry {
 		err = os.RemoveAll(tmp)
 		if err != nil {
 			color.Red("清理任务失败，跳过")
@@ -248,7 +230,7 @@ func fetchContent(id int, subpath string, retry int) {
 	rp := str.NewReplacer("&nbsp;", " ", "\n", "", "<br/>", "\n").Replace(str.TrimSpace(txt))
 	txt = regexp.MustCompile(`<.+>`).ReplaceAllString(rp, "")
 
-	// 写入到文件
+	// 写入到文件，第一个的 i = 0，应当从 1 开始
 	f, err := os.Create(filepath.Join(tmp, fmt.Sprintf("%d.txt", id+1)))
 	if err != nil {
 		color.Red("\n无法创建文件")
@@ -258,7 +240,7 @@ func fetchContent(id int, subpath string, retry int) {
 	fmt.Fprintf(f, "%s\n\n", title)
 	f.WriteString(txt)
 
-	// 避免重试导致多减,不要放在defer里
+	// 不要放在defer里，避免重试导致的多减
 	wg.Done()
 	<-max
 	bar.AddAndShow(1)
