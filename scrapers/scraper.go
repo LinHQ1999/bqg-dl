@@ -197,6 +197,7 @@ func mustGetRq(uri string) *http.Request {
 
 // FetchContent 获取章节内容并写入文件
 func fetchContent(id int, subpath string, retry int) {
+
 	if retry < 0 {
 		color.Red("\n达到最大重试次数，%d 块下载失败！", id, subpath)
 		wg.Done()
@@ -204,13 +205,14 @@ func fetchContent(id int, subpath string, retry int) {
 		bar.AddAndShow(1)
 		return
 	}
-	// 处理拼接路径问题，注意不要写共享变量
+
+	// 处理拼接路径问题，注意不要直接修改 basic
 	bsc, _ := url.Parse(basic)
 	bsc.Path = path.Join(bsc.Path, subpath)
 	//fmt.Println(bsc.String(), "\t", subpath)
 	spage, err := client.Do(mustGetRq(bsc.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
-		color.Red("\n %d 块将重试下载", id)
+		color.Red("\n %d 块将重新下载", id)
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
@@ -218,7 +220,7 @@ func fetchContent(id int, subpath string, retry int) {
 	defer spage.Body.Close()
 	spgContent, err := io.ReadAll(spage.Body)
 	if err != nil {
-		color.Red("\n无法读取块内容! --> %s", err.Error())
+		color.Red("\n无法读取 %d 块内容! -> %s", err.Error())
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
