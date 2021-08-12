@@ -16,7 +16,10 @@
 .\bqg.exe --ex <url>
 ```
 
-![da7502dfabd75ef2ccc710feabb34c49.png](da7502dfabd75ef2ccc710feabb34c49.png)
+![界面要求](da7502dfabd75ef2ccc710feabb34c49.png)
+
+![运行截图1](运行截图.png)
+![运行截图2](运行截图2.png)
 
 
 ## 配置
