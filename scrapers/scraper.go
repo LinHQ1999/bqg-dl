@@ -22,6 +22,11 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
+const (
+	timeout    = time.Second * 3
+	retryDelay = time.Second * 3
+)
+
 var (
 	utf = false
 
@@ -48,11 +53,27 @@ func init() {
 	}
 }
 
+/*
+Scrape 直接 rerun，调用的函数中 panic
+*/
+
 // Scrape 启动
 func Scrape(meta string) {
+	if Dry {
+		color.Green("%v", c)
+	}
 	// 环境配置
 	tmp = filepath.Join("chunks")
 	os.MkdirAll(tmp, os.ModeDir)
+	// 执行完之后清理，以及 panic 处理
+	defer func() {
+		if !Dry {
+			os.RemoveAll(tmp)
+		}
+		if r := recover(); r != nil {
+			color.Red("内部错误")
+		}
+	}()
 
 	// 并发控制
 	max = make(chan struct{}, Threads)
@@ -63,15 +84,11 @@ func Scrape(meta string) {
 	// 获取章节列表
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode != http.StatusOK {
-		color.Red("\n无法获取章节列表 %v", err)
-		os.Exit(2)
-	}
-	defer page.Body.Close()
-
-	pgContent, err := io.ReadAll(page.Body)
-	if err != nil {
+		color.Red("无法获取章节列表 %v", err)
 		return
 	}
+	pgContent, _ := io.ReadAll(page.Body)
+	defer page.Body.Close()
 
 	// 编码探测:`<meta ... charset="utf-8">`
 	if regexp.MustCompile(`meta.+(utf|UTF)`).Match(pgContent) {
@@ -94,7 +111,7 @@ func Scrape(meta string) {
 
 	// 由用户选择是否扩展链接
 	ex, flg := false, ""
-	color.Yellow("目录的链接格式为:< %s >，使用扩展模式？[y/n]", all.First().AttrOr("href", ""))
+	color.Yellow("目录的链接格式为:< %s >，使用截短模式（不保留 path）？[y/n]", all.First().AttrOr("href", ""))
 	fmt.Scanf("%s", &flg)
 	switch flg {
 	case "y":
@@ -103,14 +120,14 @@ func Scrape(meta string) {
 		ex = false
 	default:
 		ex = false
-		color.HiRed("无效选项，设定为%b!", ex)
+		color.HiRed("无效选项，设定为%v!", ex)
 	}
 
 	// 根据情况扩展 basic，防止连接拼接出错
 	m, err := url.Parse(meta)
 	if err != nil {
 		color.Red("host解析错误")
-		os.Exit(2)
+		return
 	}
 	if !ex {
 		m.Path = ""
@@ -137,7 +154,7 @@ func Scrape(meta string) {
 	f, err := os.Create(path.Join(name + ".txt"))
 	if err != nil {
 		color.Red("\n无法创建文件")
-		os.Exit(2)
+		return
 	}
 	defer f.Close()
 	bf := bufio.NewWriter(f)
@@ -148,26 +165,18 @@ func Scrape(meta string) {
 	for chunkID := Jump + 1; chunkID <= all.Length(); chunkID++ {
 		ct, err := os.ReadFile(path.Join(tmp, fmt.Sprintf("%d.txt", chunkID)))
 		if err != nil {
-			color.Red("\n无法获取指定分块：%d", chunkID)
-			os.Exit(2)
+			color.Red("\n无法获取指定分块：%d，跳过", chunkID)
+			continue
 		}
 		_, err = bf.Write(ct)
 		if err != nil {
-			color.Red("\n写入失败")
-			os.Exit(2)
+			color.Red("\n写入失败： %d，跳过", chunkID)
+			continue
 		}
 		// 写入一个空行
 		bf.WriteString("\n\n")
 	}
 	bf.Flush()
-
-	// 根据选项移除临时目录
-	if !Dry {
-		err = os.RemoveAll(tmp)
-		if err != nil {
-			color.Red("清理任务失败，跳过")
-		}
-	}
 	color.HiGreen("生成完毕（%.1f 秒）！", time.Since(t_temp).Seconds())
 }
 
@@ -177,7 +186,7 @@ func g2u(txt []byte) io.Reader {
 		rs, err := simplifiedchinese.GBK.NewDecoder().Bytes(txt)
 		if err != nil {
 			color.Red("编码转换失败!")
-			os.Exit(1)
+			panic(err)
 		}
 		return bytes.NewReader(rs)
 	}
@@ -189,7 +198,7 @@ func mustGetRq(uri string) *http.Request {
 	rq, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		color.Red("\n请求构建失败")
-		os.Exit(2)
+		panic(err)
 	}
 	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36 Edg/88.0.705.53")
 	return rq

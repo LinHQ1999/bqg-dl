@@ -1,0 +1,7 @@
+# https://www.52bqg.net
+book:
+  contentlist: '#list dd>a'
+  name: '#info>h1'
+chapter:
+  chaptername: '.bookname h1'
+  content: '#content'
