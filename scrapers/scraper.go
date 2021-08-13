@@ -180,7 +180,7 @@ func Scrape(meta string) {
 		bf.WriteString("\n\n")
 	}
 	bf.Flush()
-	color.HiGreen("生成完毕（%.1f 秒）！", time.Since(t_temp).Seconds())
+	color.HiGreen("生成完毕（%d 毫秒）！", time.Since(t_temp).Milliseconds())
 }
 
 // g2u 根据utf开关转换编码
