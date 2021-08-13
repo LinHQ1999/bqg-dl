@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	timeout    = time.Second * 3
-	retryDelay = time.Second * 3
+	timeout    = time.Second * 30
+	retryDelay = time.Second * 5
 )
 
 var (
@@ -60,7 +60,7 @@ Scrape 直接 rerun，调用的函数中 panic
 // Scrape 启动
 func Scrape(meta string) {
 	if Dry {
-		color.Green("%v", c)
+		color.Green("配置文件: %v", c)
 	}
 	// 环境配置
 	tmp = filepath.Join("chunks")
@@ -72,6 +72,9 @@ func Scrape(meta string) {
 		}
 		if r := recover(); r != nil {
 			color.Red("内部错误")
+			if Dry {
+				color.Yellow("错误原因: %v", r)
+			}
 		}
 	}()
 
@@ -84,7 +87,7 @@ func Scrape(meta string) {
 	// 获取章节列表
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode != http.StatusOK {
-		color.Red("无法获取章节列表 %v", err)
+		color.Red("无法获取章节列表 %v", page.Request.Header)
 		return
 	}
 	pgContent, _ := io.ReadAll(page.Body)
@@ -200,7 +203,10 @@ func mustGetRq(uri string) *http.Request {
 		color.Red("\n请求构建失败")
 		panic(err)
 	}
-	rq.Header.Set("User-Agent", "Edge/89")
+	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67")
+	// 自动计算referer，一般是回退一分隔符，但保留最后一个
+	referrer := uri[:str.LastIndex(uri,"/")+1]
+	rq.Header.Set("referer", referrer)
 	return rq
 }
 
@@ -208,7 +214,7 @@ func mustGetRq(uri string) *http.Request {
 func fetchContent(id int, subpath string, retry int) {
 
 	if retry < 0 {
-		color.Red("\n达到最大重试次数，块(%-4d)下载失败！", id, subpath)
+		color.Red("\n达到最大重试次数，块(%-4d)下载失败！", id)
 		wg.Done()
 		<-max
 		bar.AddAndShow(1)
