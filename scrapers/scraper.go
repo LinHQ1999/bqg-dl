@@ -87,7 +87,7 @@ func Scrape(meta string) {
 	// 获取章节列表
 	page, err := client.Do(mustGetRq(meta))
 	if err != nil || page.StatusCode != http.StatusOK {
-		color.Red("无法获取章节列表 %v", page.Request.Header)
+		color.Red("无法获取章节列表 %v", page.Header)
 		return
 	}
 	pgContent, _ := io.ReadAll(page.Body)
