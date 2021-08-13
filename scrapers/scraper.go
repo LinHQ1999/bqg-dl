@@ -111,7 +111,7 @@ func Scrape(meta string) {
 
 	// 由用户选择是否扩展链接
 	ex, flg := false, ""
-	color.Yellow("目录的链接格式为:< %s >，使用截短模式（不保留 path）？[y/n]", all.First().AttrOr("href", ""))
+	color.Yellow("目录的链接格式为:< %s >，使用扩展模式（保留 path）？[y/n]", all.First().AttrOr("href", ""))
 	fmt.Scanf("%s", &flg)
 	switch flg {
 	case "y":
@@ -165,12 +165,12 @@ func Scrape(meta string) {
 	for chunkID := Jump + 1; chunkID <= all.Length(); chunkID++ {
 		ct, err := os.ReadFile(path.Join(tmp, fmt.Sprintf("%d.txt", chunkID)))
 		if err != nil {
-			color.Red("\n无法获取指定分块：%d，跳过", chunkID)
+			color.Red("\n无法获取指定分块(%-4d)，跳过", chunkID)
 			continue
 		}
 		_, err = bf.Write(ct)
 		if err != nil {
-			color.Red("\n写入失败： %d，跳过", chunkID)
+			color.Red("\n写入失败(%-4d)，跳过", chunkID)
 			continue
 		}
 		// 写入一个空行
@@ -200,7 +200,7 @@ func mustGetRq(uri string) *http.Request {
 		color.Red("\n请求构建失败")
 		panic(err)
 	}
-	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36 Edg/88.0.705.53")
+	rq.Header.Set("User-Agent", "Edge/89")
 	return rq
 }
 
@@ -208,7 +208,7 @@ func mustGetRq(uri string) *http.Request {
 func fetchContent(id int, subpath string, retry int) {
 
 	if retry < 0 {
-		color.Red("\n达到最大重试次数，%d 块下载失败！", id, subpath)
+		color.Red("\n达到最大重试次数，块(%-4d)下载失败！", id, subpath)
 		wg.Done()
 		<-max
 		bar.AddAndShow(1)
@@ -221,7 +221,7 @@ func fetchContent(id int, subpath string, retry int) {
 	//fmt.Println(bsc.String(), "\t", subpath)
 	spage, err := client.Do(mustGetRq(bsc.String()))
 	if err != nil || spage.StatusCode != http.StatusOK {
-		color.Red("\n %d 块将重新下载", id)
+		color.Red("\n 块(%-4d)将重新下载", id)
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
@@ -229,7 +229,7 @@ func fetchContent(id int, subpath string, retry int) {
 	defer spage.Body.Close()
 	spgContent, err := io.ReadAll(spage.Body)
 	if err != nil {
-		color.Red("\n无法读取 %d 块内容! -> %s", err.Error())
+		color.Red("\n无法读取 块(%-4d)内容! -> %s", err.Error())
 		time.Sleep(retryDelay)
 		fetchContent(id, subpath, retry-1)
 		return
