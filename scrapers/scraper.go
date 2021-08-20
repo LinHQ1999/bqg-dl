@@ -85,7 +85,7 @@ func Scrape(meta string) {
 	t_start := time.Now()
 
 	// 获取章节列表
-	page, err := client.Do(mustGetRq(meta))
+	page, err := client.Do(mustGetRq(meta, "https://cn.bing.com/"))
 	if err != nil || page.StatusCode != http.StatusOK {
 		color.Red("无法获取章节列表 %v", page.Header)
 		return
@@ -126,7 +126,7 @@ func Scrape(meta string) {
 		color.HiRed("无效选项，设定为%v!", ex)
 	}
 
-	// 根据情况扩展 basic，防止连接拼接出错
+	// 根据情况裁剪 basic，防止连接拼接出错
 	m, err := url.Parse(meta)
 	if err != nil {
 		color.Red("host解析错误")
@@ -134,6 +134,9 @@ func Scrape(meta string) {
 	}
 	if !ex {
 		m.Path = ""
+	} else {
+		// 有的网站得去掉末尾 index.html
+		m.Path = str.ReplaceAll(m.Path, "index.html", "")
 	}
 	// 存储网站链接信息
 	basic = m.String()
@@ -197,16 +200,16 @@ func g2u(txt []byte) io.Reader {
 }
 
 // MustGetRq Build a Request
-func mustGetRq(uri string) *http.Request {
+func mustGetRq(uri string, referrer ...string) *http.Request {
 	rq, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		color.Red("\n请求构建失败")
 		panic(err)
 	}
 	rq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67")
-	// 自动计算referer，一般是回退一分隔符，但保留最后一个
-	referrer := uri[:str.LastIndex(uri,"/")+1]
-	rq.Header.Set("referer", referrer)
+	if !NoReferrer && len(referrer) != 0 {
+		rq.Header.Set("referer", referrer[0])
+	}
 	return rq
 }
 
@@ -225,7 +228,8 @@ func fetchContent(id int, subpath string, retry int) {
 	bsc, _ := url.Parse(basic)
 	bsc.Path = path.Join(bsc.Path, subpath)
 	//fmt.Println(bsc.String(), "\t", subpath)
-	spage, err := client.Do(mustGetRq(bsc.String()))
+	// 小说页面的 Referer 是引用的 basic
+	spage, err := client.Do(mustGetRq(bsc.String(), basic))
 	if err != nil || spage.StatusCode != http.StatusOK {
 		color.Red("\n 块(%-4d)将重新下载", id)
 		time.Sleep(retryDelay)

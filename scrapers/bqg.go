@@ -16,6 +16,8 @@ var (
 	Retry int
 	// Jump 跳过前面几章
 	Jump int
+	// Referrer 不要探测 referer
+	NoReferrer bool
 	// Dry 保留单章
 	Dry bool
 	// 配置文件
